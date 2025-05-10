@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>QR Pembayaran Otomatis &amp; Cek Mutasi</title>
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <!-- SweetAlert2 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet" />
+  <style>
+    body {
+      background: #f0f2f5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      margin: 0;
+    }
+    #qr-container {
+      background: white;
+      border-radius: 1rem;
+      box-shadow: 0 4px 12px rgb(0 0 0 / 0.1);
+      width: 100%;
+      max-width: 320px;
+      height: 320px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      visibility: hidden;
+      opacity: 0;
+      transition: visibility 0s linear 0.3s, opacity 0.3s linear;
+      margin: 0 auto;
+    }
+    #qr-container.visible {
+      visibility: visible;
+      opacity: 1;
+      transition-delay: 0s;
+    }
+    #loading {
+      font-weight: 600;
+      color: #0d6efd; /* Bootstrap primary */
+      display: none;
+      position: absolute;
+      user-select: none;
+    }
+    #mutation-result {
+      width: 100%;
+      max-width: 700px;
+      margin-top: 1.5rem;
+      overflow-x: auto;
+    }
+    footer {
+      margin-top: auto;
+      padding: 1rem 0;
+      text-align: center;
+      color: #6c757d;
+      font-size: 0.9rem;
+    }
+    canvas {
+      max-width: 100%;
+      height: auto !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="container py-4 d-flex flex-column align-items-center">
+    <h1 class="mb-4 text-center fw-bold">Generator QR Pembayaran &amp; Cek Mutasi</h1>
+
+    <div class="w-100" style="max-width: 400px;">
+      <label for="amount-input" class="form-label fw-semibold">Masukkan Nominal (Rp):</label>
+      <input
+        id="amount-input"
+        type="number"
+        min="1"
+        class="form-control"
+        placeholder="Masukkan nominal pembayaran"
+        autocomplete="off"
+        inputmode="numeric"
+      />
+    </div>
+
+    <div id="qr-wrapper" class="position-relative my-4" style="width:320px; height:320px;">
+      <div id="qr-container" class="rounded shadow position-relative">
+        <canvas id="qr" width="320" height="320"></canvas>
+      </div>
+      <div id="loading" class="position-absolute top-50 start-50 translate-middle">
+        Menghasilkan QR Code...
+      </div>
+    </div>
+
+    <div id="mutation-result" class="w-100">
+      <div id="status-msg" class="mb-2 fw-semibold text-primary"></div>
+      <table id="mutation-table" class="table table-striped table-bordered table-responsive" style="display:none; min-width: 700px;">
+        <thead class="table-primary text-center align-middle">
+          <tr>
+            <th>Tanggal</th>
+            <th>Nominal (Rp)</th>
+            <th>Type</th>
+            <th>QRIS</th>
+            <th>Brand</th>
+            <th>Referensi Issuer</th>
+            <th>Referensi Pembeli</th>
+            <th>Saldo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Rows dynamically inserted here -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>
+    Buat oleh BLACKBOXAI &mdash; QR Code pembayaran otomatis
+  </footer>
+
+  <!-- SweetAlert2 JS -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <!-- Bootstrap JS Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- QRCode library -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+
+  <script>
+    // CRC16 calculation
+    function toCRC16(str) {
+      let crc = 0xffff;
+      for (let c = 0; c < str.length; c++) {
+        crc ^= str.charCodeAt(c) << 8;
+        for (let i = 0; i < 8; i++) {
+          if (crc & 0x8000) crc = (crc << 1) ^ 0x1021;
+          else crc <<= 1;
+          crc &= 0xffff;
+        }
+      }
+      return crc.toString(16).toUpperCase().padStart(4, "0");
+    }
+
+    function qrisDinamis(qrstring, nominal) {
+      let qris2 = qrstring.slice(0, -4);
+      let replaceQris = qris2.replace("010211", "010212");
+      let pecahQris = replaceQris.split("5802ID");
+      let uang = "54" + ("0" + nominal.toString().length).slice(-2) + nominal + "5802ID";
+      let output = pecahQris[0] + uang + pecahQris[1] + toCRC16(pecahQris[0] + uang + pecahQris[1]);
+      return output;
+    }
+
+    const baseQrString = "00020101021126640015ID.OTTOCASH.WWW01189360081110017140060212OP1D012606110303UMI51440014ID.CO.QRIS.WWW0215ID10232593457190303UMI5204541153033605802ID5911MP-ARDI DEV6004BONE61059271162070703A016304AA4E";
+
+    const amountInput = document.getElementById("amount-input");
+    const qrCanvas = document.getElementById("qr");
+    const loadingIndicator = document.getElementById("loading");
+    const qrContainer = document.getElementById("qr-container");
+    const statusMsg = document.getElementById("status-msg");
+    const mutationTable = document.getElementById("mutation-table");
+    const mutationTbody = mutationTable.querySelector("tbody");
+
+    let generateTimeout = null;
+    let checkIntervalId = null;
+    let swalTimeout = null;
+    let lastValue = "";
+
+    function showLoading(show) {
+      loadingIndicator.style.display = show ? "block" : "none";
+      qrCanvas.style.display = show ? "none" : "block";
+    }
+
+    function clearCanvas() {
+      const ctx = qrCanvas.getContext("2d");
+      ctx.clearRect(0, 0, qrCanvas.width, qrCanvas.height);
+    }
+
+    function showQrContainer(show) {
+      if (show) qrContainer.classList.add("visible");
+      else qrContainer.classList.remove("visible");
+    }
+
+    function clearMutationDisplay() {
+      statusMsg.textContent = "";
+      mutationTable.style.display = "none";
+      mutationTbody.innerHTML = "";
+    }
+
+    async function fetchMutasi() {
+     const endpoint = "https://gateway.okeconnect.com/api/mutasi/qris/OK1504952/900644917429952981504952OKCT27809B20C1277CF9F71ACA218D1A114C";
+      try {
+        const response = await fetch(endpoint);
+        console.log(response);
+       // if (!response.ok) throw new Error("Network response not ok");
+     //   const data = await response.json();
+        
+       // if (data.status !== "success" || !Array.isArray(data.data))
+        //  throw new Error("Invalid response format");
+     //   return data.data;
+      } catch (error) {
+        //console.error("Error fetching mutasi data:", error);
+       // return null;
+      }
+    }
+
+    function formatDate(dateStr) {
+      const d = new Date(dateStr);
+      return isNaN(d) ? dateStr : d.toLocaleString("id-ID", { hour12: false });
+    }
+
+    function createMutationRow(item) {
+      const tr = document.createElement("tr");
+      [
+        formatDate(item.date),
+        Number(item.amount).toLocaleString("id-ID"),
+        item.type,
+        item.qris,
+        item.brand_name,
+        item.issuer_reff,
+        item.buyer_reff.trim(),
+        Number(item.balance).toLocaleString("id-ID"),
+      ].forEach(text => {
+        const td = document.createElement("td");
+        td.textContent = text;
+        tr.appendChild(td);
+      });
+      return tr;
+    }
+
+    async function checkMutasi(nominal) {
+   //   statusMsg.textContent = "Memeriksa mutasi...";
+      const mutasi = await fetchMutasi();
+      statusMsg.textContent = mutasi;
+      if (!mutasi) {
+     //   statusMsg.textContent = "Gagal memeriksa mutasi.";
+        mutationTable.style.display = "none";
+        mutationTbody.innerHTML = "";
+        return;
+      }
+
+      const nominalNum = Number(nominal);
+      const matched = mutasi.filter(item => item.type === "CR" && Number(item.amount) === nominalNum);
+
+      if (matched.length > 0) {
+        statusMsg.textContent = `Mutasi ditemukan untuk nominal Rp ${nominalNum.toLocaleString("id-ID")}.`;
+        mutationTable.style.display = "";
+        mutationTbody.innerHTML = "";
+        matched.forEach(item => mutationTbody.appendChild(createMutationRow(item)));
+      } else {
+        statusMsg.textContent = `Belum ada mutasi untuk nominal Rp ${nominalNum.toLocaleString("id-ID")}.`;
+        mutationTable.style.display = "none";
+        mutationTbody.innerHTML = "";
+      }
+    }
+
+    function startMutationChecking(nominal) {
+      if (checkIntervalId) clearInterval(checkIntervalId);
+      if (!nominal || nominal === "0") return;
+      checkMutasi(nominal);
+      checkIntervalId = setInterval(() => checkMutasi(nominal), 15000);
+    }
+
+    function stopMutationChecking() {
+      if (checkIntervalId) {
+        clearInterval(checkIntervalId);
+        checkIntervalId = null;
+      }
+      clearMutationDisplay();
+    }
+
+    function renderQr(nominal) {
+      if (!nominal || nominal === "0") {
+        clearCanvas();
+        showLoading(false);
+        showQrContainer(false);
+        stopMutationChecking();
+        return;
+      }
+      showQrContainer(true);
+      showLoading(true);
+
+      if (generateTimeout) clearTimeout(generateTimeout);
+
+      generateTimeout = setTimeout(() => {
+        try {
+          const qrString = qrisDinamis(baseQrString, nominal);
+          QRCode.toCanvas(
+            qrCanvas,
+            qrString,
+            {
+              errorCorrectionLevel: "M",
+              margin: 2,
+              scale: 8,
+              color: { dark: "#000", light: "#fff" },
+            },
+            error => {
+              showLoading(false);
+              if (error) {
+                console.error("Error generating QR code:", error);
+                clearCanvas();
+                stopMutationChecking();
+              } else {
+                startMutationChecking(nominal);
+              }
+            }
+          );
+        } catch (error) {
+          showLoading(false);
+          console.error("Exception in QR code generation:", error);
+          clearCanvas();
+          stopMutationChecking();
+        }
+      }, 500);
+    }
+
+    // Handle user input with 3s delay before SweetAlert confirm
+    amountInput.addEventListener("input", e => {
+      const val = e.target.value.trim();
+
+      if (swalTimeout) clearTimeout(swalTimeout);
+
+      if (!val || isNaN(val) || Number(val) <= 0) {
+        // No valid input, clear QR & mutation
+        renderQr("");
+        lastValue = "";
+        return;
+      }
+
+      // If same input recent, do nothing (avoid multiple alerts)
+      if (val === lastValue) return;
+
+      swalTimeout = setTimeout(() => {
+        Swal.fire({
+          title: 'Konfirmasi Pembayaran',
+          text: `Apakah Anda yakin ingin menghasilkan QR untuk nominal Rp ${Number(val).toLocaleString('id-ID')}?`,
+          icon: 'question',
+          showCancelButton: true,
+          confirmButtonText: 'Ya, buat QR',
+          cancelButtonText: 'Batal',
+        }).then((result) => {
+          if (result.isConfirmed) {
+            lastValue = val;
+            renderQr(val);
+          } else {
+            amountInput.value = "";
+            lastValue = "";
+            renderQr("");
+          }
+        });
+      }, 3000);
+    });
+
+    // Initial state
+    showQrContainer(false);
+    clearMutationDisplay();
+  </script>
+</body>
+</html>
+
