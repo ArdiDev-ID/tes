@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>QR Pembayaran QRIS</title>
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <!-- SweetAlert2 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet" />
+  <style>
+    body {
+      background: #f4f7fb;
+      height: 100vh;
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .qris-card {
+      background: #ffffff;
+      width: 100%;
+      max-width: 350px;
+      border-radius: 20px;
+      box-shadow: 0 20px 40px rgb(0 0 0 / 0.1);
+      padding: 1.5rem 1.8rem 2rem;
+      text-align: center;
+      position: relative;
+      z-index: 10;
+    }
+    .qris-logo svg {
+      width: 110px;
+      margin-bottom: 16px;
+    }
+    .qris-title {
+      font-weight: 700;
+      font-size: 1.3rem;
+      color: #004aad;
+      margin-bottom: 18px;
+      letter-spacing: 2px;
+    }
+    #qrcode-wrapper {
+      position: relative;
+      width: 296px; /* QR size */
+      height: 296px;
+      margin: 0 auto 20px;
+    }
+    #qrcode {
+      background: #fff;
+      width: 296px;
+      height: 296px;
+      border-radius: 16px;
+      box-shadow: 0 8px 18px rgb(0 74 173 / 0.3);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    /* Corner frames outside QR */
+    #qrcode-wrapper::before,
+    #qrcode-wrapper::after,
+    #qrcode-wrapper > .corner-top-right,
+    #qrcode-wrapper > .corner-bottom-left {
+      content: "";
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      border: 4px solid #004aad;
+      border-radius: 8px;
+      box-sizing: border-box;
+      z-index: 20;
+    }
+    #qrcode-wrapper::before {
+      top: -20px;
+      left: -20px;
+      border-right: none;
+      border-bottom: none;
+      border-top-left-radius: 20px;
+      border-width: 6px;
+    }
+    #qrcode-wrapper::after {
+      top: -20px;
+      right: -20px;
+      border-left: none;
+      border-bottom: none;
+      border-top-right-radius: 20px;
+      border-width: 6px;
+    }
+    #qrcode-wrapper > .corner-top-right {
+      top: 100%;
+      right: -20px;
+      border-left: none;
+      border-top: none;
+      border-bottom-right-radius: 20px;
+      border-width: 6px;
+    }
+    #qrcode-wrapper > .corner-bottom-left {
+      top: 100%;
+      left: -20px;
+      border-right: none;
+      border-top: none;
+      border-bottom-left-radius: 20px;
+      border-width: 6px;
+    }
+    label {
+      font-weight: 600;
+      color: #004aad;
+      letter-spacing: 0.8px;
+      font-size: 1rem;
+      margin-bottom: 6px;
+      display: block;
+      text-align: left;
+    }
+    input.form-control {
+      font-weight: 600;
+      font-size: 1.3rem;
+      border-radius: 14px;
+      border: 2px solid #004aad;
+      text-align: center;
+      transition: border-color 0.3s ease;
+      padding: 8px;
+      margin-bottom: 1rem;
+    }
+    input.form-control:focus {
+      outline: none;
+      border-color: #002e7b;
+      box-shadow: 0 0 10px #004aadaa;
+    }
+    .footer-text {
+      margin-top: 16px;
+      font-style: italic;
+      color: #555;
+      font-size: 0.9rem;
+    }
+    #fireworks-container {
+      pointer-events: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      width: 350px;
+      height: 350px;
+      transform: translate(-50%, -50%);
+      z-index: 20; /* above card */
+      display: none;
+      border-radius: 20px;
+      user-select: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="qris-card" id="cardWrapper" role="main" aria-label="QRIS Payment Card">
+    <div class="qris-logo" aria-hidden="true" role="img">
+      <svg viewBox="0 0 193 55" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+        <path d="M18.124 28.822v-9.906h3.95v.625h-3.35v3.054h3.1v.62h-3.1v3.647h3.45v.65h-4.05zm12.245 2.38 -4.525-7.526h3.605l3.15 5.407 2.241-4.558h3.314l-4.883 7.455v3.93h-3.902zm8.8-9.888a3.735 3.735 0 1 1 3.735 3.726 3.733 3.733 0 0 1-3.735-3.726zm3.42 0a1.683 1.683 0 1 0-1.683 1.677 1.683 1.683 0 0 0 1.683-1.677z" fill="#004aad"/>
+        <path d="M43.792 30.006v-6.703h3.298l2.589 5.286v-5.286h3.06v9.91h-3.298l-2.589-5.314v5.314zm18.034-3.262c0-1.968-1.477-3.432-3.573-3.432s-3.573 1.464-3.573 3.432 1.478 3.445 3.573 3.445 3.573-1.47 3.573-3.445zm-3.58 2.535a2.318 2.318 0 1 1 2.32-2.327 2.319 2.319 0 0 1-2.32 2.327z" fill="#0072ce"/>
+        <circle cx="91.529" cy="22.95" r="10.665" fill="#fbbc04"/>
+        <path fill="#004aad" d="M132.863 21.461h3.633v-5.674h-3.633zM135.251 21.123h1.879v7.233h-1.879z"/>
+        <path fill="#0072ce" d="M154.042 28.34 150.83 21.48l3.124-6.963h3.409L154.04 28.34zm-.276-8.54-1.112 2.478-1.092-2.478z"/>
+      </svg>
+    </div>
+    <div class="qris-title" aria-label="Scan QR Code">Bayar dengan QRIS</div>
+    <div id="qrcode-wrapper">
+      <div id="qrcode" aria-live="polite" aria-atomic="true" role="img"></div>
+      <div class="corner-top-right"></div>
+      <div class="corner-bottom-left"></div>
+    </div>
+    <br>
+    <form id="form" autocomplete="off" novalidate>
+      <input type="text" id="nameInput" placeholder="Nama Anda" class="form-control" autocomplete="off" />
+      <input
+        type="text"
+        id="nominalInput"
+        inputmode="numeric"
+        pattern="[0-9]+"
+        placeholder="Contoh: 10000"
+        required
+        aria-describedby="nominalHelp"
+        class="form-control"
+      />
+      <div id="nominalHelp" class="form-text">QR code akan terupdate otomatis setelah konfirmasi nominal dan nama.</div>
+    </form>
+    <div class="footer-text">Pastikan data yang dimasukkan benar sebelum melakukan pembayaran.</div>
+  </div>
+
+  <div id="fireworks-container"></div>
+
+  <!-- JS Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fireworks-js@2.x/dist/index.umd.js"></script>
+
+  <script>
+    const QR_BASE_STRING = "00020101021126640015ID.OTTOCASH.WWW01189360081110017140060212OP1D012606110303UMI51440014ID.CO.QRIS.WWW0215ID10232593457190303UMI5204541153033605802ID5911MP-ARDI DEV6004BONE61059271162070703A016304AA4E";
+
+    function toCRC16(str) {
+      function charCodeAt(str, i) {
+        let get = str.substr(i, 1);
+        return get.charCodeAt();
+      }
+      let crc = 0xffff;
+      let strlen = str.length;
+      for (let c = 0; c < strlen; c++) {
+        crc ^= charCodeAt(str, c) << 8;
+        for (let i = 0; i < 8; i++) {
+          if (crc & 0x8000) {
+            crc = (crc << 1) ^ 0x1021;
+          } else {
+            crc = crc << 1;
+          }
+        }
+      }
+      let hex = crc & 0xffff;
+      hex = hex.toString(16).toUpperCase();
+      return hex.padStart(4, "0");
+    }
+
+    async function qrisDinamis(qrstring, nominal) {
+      let qris2 = qrstring.slice(0, -4);
+      let replaceQris = qris2.replace("010211", "010212");
+      let pecahQris = replaceQris.split("5802ID");
+      let uang = "54" + ("0" + nominal.toString().length).slice(-2) + nominal + "5802ID";
+
+      let output = pecahQris[0] + uang + pecahQris[1] + toCRC16(pecahQris[0] + uang + pecahQris[1]);
+      return output;
+    }
+
+    (function () {
+      const nama = document.getElementById("nama");
+      const nominal = document.getElementById("nominal");
+      const nameInput = document.getElementById("nameInput");
+      const nominalInput = document.getElementById("nominalInput");
+      const qrContainer = document.getElementById("qrcode");
+      const qrWrapper = document.getElementById("qrcode-wrapper");
+      const fireworksContainer = document.getElementById("fireworks-container");
+      let fireworks = null;
+      let typingTimer = null;
+
+      function clearQRCode() {
+        qrContainer.innerHTML = "";
+      }
+
+      async function generateQRCode(data) {
+        clearQRCode();
+        try {
+          const qrCanvas = document.createElement("canvas");
+          await QRCode.toCanvas(qrCanvas, data, {
+            errorCorrectionLevel: "H",
+            margin: 0,
+            width: 260,
+            color: {
+              dark: "#000000",
+              light: "#ffffff",
+            },
+          });
+          qrCanvas.style.borderRadius = "16px";
+          qrContainer.appendChild(qrCanvas);
+        } catch (error) {
+          Swal.fire({
+            icon: "error",
+            title: "Gagal membuat QR code",
+            text: error.message,
+            timer: 3000,
+            showConfirmButton: false,
+          });
+          console.error(error);
+        }
+      }
+
+      function validateNominal(value) {
+        return /^[1-9][0-9]*$/.test(value);
+      }
+      function validateName(value) {
+        return value.trim().length > 0;
+      }
+
+      function startFireworks() {
+        if (fireworks) {
+          fireworks.stop();
+          fireworks = null;
+        }
+        fireworksContainer.style.display = "block";
+        fireworks = new Fireworks.default(fireworksContainer);
+        fireworks.start();
+        setTimeout(() => {
+          fireworks.stop();
+          fireworksContainer.style.display = "none";
+        }, 4000);
+      }
+
+      async function confirmAndGenerate() {
+        const nameVal = nameInput.value.trim();
+        const nominalVal = nominalInput.value.trim();
+        if (!validateName(nameVal)) {
+          Swal.fire({
+            icon: "warning",
+            title: "Nama tidak boleh kosong",
+            text: "Silakan masukkan nama Anda.",
+          });
+          return;
+        }
+        if (!validateNominal(nominalVal)) {
+          Swal.fire({
+            icon: "warning",
+            title: "Nominal tidak valid",
+            text: "Masukkan hanya angka positif tanpa spasi atau karakter lain.",
+          });
+          return;
+        }
+        const result = await Swal.fire({
+          title: `Konfirmasi pembayaran Rp${Number(nominalVal).toLocaleString(
+            "id-ID"
+          )} oleh ${nameVal}?`,
+          icon: "question",
+          showCancelButton: true,
+          confirmButtonText: "Ya",
+          cancelButtonText: "Tidak",
+          reverseButtons: true,
+        });
+
+        if (result.isConfirmed) {
+          Swal.fire({
+            title: "Sedang membuat QRIS...",
+            didOpen: () => Swal.showLoading(),
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            allowEnterKey: false,
+          });
+          await new Promise((r) => setTimeout(r, 2000));
+          const qrData = await qrisDinamis(QR_BASE_STRING, nominalVal);
+          await generateQRCode(qrData);
+          Swal.close();
+          Swal.fire({
+            icon: "success",
+            title: "Sukses",
+            text: "QRIS berhasil dibuat",
+            timer: 2000,
+            showConfirmButton: false,
+            willClose: () => {
+              startFireworks();
+              nameInput.style.display = "none";
+              nominalInput.style.display = "none";
+                name.style.display = "none";
+              nominal.style.display = "none";
+                
+            },
+          });
+        }
+      }
+
+      function debounce(fn, delay) {
+        return function (...args) {
+          clearTimeout(typingTimer);
+          typingTimer = setTimeout(() => fn.apply(this, args), delay);
+        };
+      }
+
+      const debouncedConfirmAndGenerate = debounce(confirmAndGenerate, 2000);
+
+      nameInput.addEventListener("input", debouncedConfirmAndGenerate);
+      nominalInput.addEventListener("input", debouncedConfirmAndGenerate);
+              
+              
+    })();
+var message="Function Disabled!";
+        function clickdsb(){
+        if (event.button==2){
+        alert(message);
+        return false;
+        }
+        }
+        function clickbsb(e){
+        if (document.layers||document.getElementById&&!document.all){
+        if (e.which==2||e.which==3){
+        alert(message);
+        return false;
+        }
+        }
+        }
+        if (document.layers){
+        document.captureEvents(Event.MOUSEDOWN);
+        document.onmousedown=clickbsb;
+        }
+        else if (document.all&&!document.getElementById){
+        document.onmousedown=clickdsb;
+        }
+        
+        document.oncontextmenu=new Function("alert(message);return false")
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+        });
+        
+  </script>
+</body>
+</html>
