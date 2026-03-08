@@ -1,0 +1,21 @@
+{
+  "name": "telegram-bot-starter",
+  "version": "1.0.0",
+  "description": "Bot Telegram sederhana, plugin auto-register, serializer terpisah (Node.js)",
+  "main": "bot_telegram.js",
+  "scripts": {
+    "start": "node bot_telegram.js",
+    "check": "node --check bot_telegram.js && node --check lib/*.js && node --check plugins/*.js"
+  },
+  "keywords": [
+    "telegram",
+    "bot",
+    "nodejs",
+    "telegraf",
+    "plugin"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "telegraf": "^4.16.3"
+  }
+}
