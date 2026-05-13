@@ -36,3 +36,5 @@ $route['order/confirm-safety/(:num)'] = 'order/confirm_safety/$1';
 
 $route['seller/store'] = 'seller/store/view';
 $route['seller/store/(:any)'] = 'seller/store/view/$1';
+$route['login'] = 'auth/login';
+$route['logout'] = 'auth/logout';
