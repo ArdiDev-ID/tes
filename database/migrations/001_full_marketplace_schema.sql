@@ -1,0 +1,1 @@
+-- Placeholder migration for full marketplace schema
