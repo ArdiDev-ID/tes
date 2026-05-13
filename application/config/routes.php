@@ -38,3 +38,4 @@ $route['seller/store'] = 'seller/store/view';
 $route['seller/store/(:any)'] = 'seller/store/view/$1';
 $route['login'] = 'auth/login';
 $route['logout'] = 'auth/logout';
+$route['register'] = 'auth/register';
