@@ -1,52 +1,24 @@
-# Telegram Bot Sederhana (Node.js + Auto Plugin)
+# Marketplace Jual Beli Akun (CodeIgniter 3 Starter)
 
-## Yang sudah dibikin
-- Command auto-register dari folder `plugins/`.
-- Serializer memakai **1 function utama**: `serializeTelegramUpdate(ctx, options)`.
-- Button pakai format singkat, bisa untuk message dan media.
-- Ada fitur global auto-edit pesan saat tombol diklik (`edit: true`).
+Starter fullstack awal untuk marketplace akun game dengan role Buyer, Seller, dan Admin.
 
-## Format button singkat
-Format pasangan:
-- elemen pertama = teks button
-- elemen kedua = callback
-- elemen ketiga (opsional) = opsi, contoh `{ edit: true, text: "..." }`
+## Yang sudah tersedia
+- Struktur awal CodeIgniter 3 (`application/controllers`, `models`, `views`, `libraries`, `config`).
+- Route dasar Buyer/Seller/Admin + callback payment Duitku.
+- Contoh race-safe wallet debit pada `Wallet_model::safeDebit()` dengan `SELECT ... FOR UPDATE`.
+- UI starter berbasis Tailwind CSS untuk halaman dashboard dan list dasar.
+- Dokumen blueprint di `MARKETPLACE_SPEC.md` dan skema SQL di `database_schema_marketplace.sql`.
 
-### Kirim pesan biasa
-```js
-await ctx.sendMessage(
-  "tes",
-  ["ping", "ping"],
-  ["mantap", "mantap"]
-);
-```
+## Endpoint awal
+- `/` home
+- `/buyer/dashboard`, `/buyer/wallet`, `/buyer/orders`
+- `/seller/dashboard`, `/seller/products`, `/seller/orders`
+- `/admin/dashboard`, `/admin/products/review`, `/admin/orders`
+- `/payment/duitku/callback`
 
-### Kirim media
-```js
-await ctx.sendPhoto(
-  "https://picsum.photos/300/200",
-  "caption",
-  ["ping", "ping"],
-  ["mantap", "mantap"]
-);
-```
-
-### Auto edit pesan global
-Kalau tombol punya opsi `edit: true`, bot otomatis edit pesan saat tombol itu diklik.
-
-```js
-["Edit pesan", "edit_1", { edit: true, text: "✅ Sudah di-edit" }]
-```
-
-## Struktur penting
-- `bot_telegram.js` → load plugin otomatis + callback query global + helper global (`ctx.button`, `ctx.sendMessage`, `ctx.sendPhoto`, `ctx.editpesan`)
-- `lib/serialize.js` → 1 function serializer utama
-- `lib/button-format.js` → parser format singkat button + resolver action callback
-- `plugins/*.js` → command/plugin
-
-## Jalankan
-```bash
-npm install
-export TELEGRAM_BOT_TOKEN="TOKEN_DARI_BOTFATHER"
-npm start
-```
+## Next step implementasi
+1. Auth + session + role middleware.
+2. CRUD produk + upload screenshot + reorder.
+3. Checkout + invoice Duitku + callback idempotent.
+4. Escrow seller (`pending` -> `available`) saat order complete.
+5. Dispute, refund, withdrawal approval admin.
